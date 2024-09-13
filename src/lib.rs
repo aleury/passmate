@@ -6,24 +6,33 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{self, BufReader, BufWriter, ErrorKind},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
-struct Vault {
+pub struct Vault {
     path: PathBuf,
     data: HashMap<String, String>,
 }
 
 impl Vault {
-    fn open(path: PathBuf) -> io::Result<Self> {
+    /// Opens the vault at the given path or returns
+    /// a empty vault if it doesn't already exist.
+    ///
+    /// # Errors
+    /// May return an I/O error if there a failure to open
+    /// the vault at provided path.
+    pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
         match File::open(&path) {
             Ok(file) => {
                 let reader = BufReader::new(file);
                 let data = serde_json::from_reader(reader)?;
-                Ok(Self { path, data })
+                Ok(Self {
+                    path: PathBuf::from(path.as_ref()),
+                    data,
+                })
             }
             Err(e) if e.kind() == ErrorKind::NotFound => Ok(Self {
-                path,
+                path: PathBuf::from(path.as_ref()),
                 data: HashMap::new(),
             }),
             Err(e) => Err(e),
@@ -46,7 +55,13 @@ impl Vault {
         self.data.remove(name);
     }
 
-    fn save(&self) -> io::Result<()> {
+    /// Saves the vault to disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if it fails to create and write
+    /// to a file at the given path.
+    pub fn save(&self) -> io::Result<()> {
         let file = File::create(&self.path)?;
         let writer = BufWriter::new(file);
         serde_json::to_writer(writer, &self.data)?;
