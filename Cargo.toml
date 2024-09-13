@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = """Manage passwords with ease."""
 license = "MIT OR Apache-2.0"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1"
