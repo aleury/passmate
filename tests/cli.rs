@@ -109,6 +109,32 @@ fn binary_with_remove_command_deletes_a_password_from_the_vault() {
     assert_eq!(want, got);
 }
 
+#[test]
+fn binary_with_ls_command_lists_the_entry_names_in_a_vault() {
+    let temp_config =
+        TempDir::with_prefix("config-").expect("failed to create temporary config directory");
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .args(["set", "pass1", "secretpass1"])
+        .assert()
+        .success();
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .args(["set", "pass2", "secretpass2"])
+        .assert()
+        .success();
+
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .arg("ls")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("pass1\npass2\n"));
+}
+
 fn read_vault_data_from_file(path: &PathBuf) -> HashMap<String, String> {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);

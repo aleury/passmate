@@ -38,7 +38,15 @@ impl Vault {
         }
     }
 
-    /// Retrieves an entry with the given name.
+    /// Returns a list of entry names in alphabetical order.
+    #[must_use]
+    pub fn entries(&self) -> Vec<String> {
+        let mut entries: Vec<String> = self.data.keys().cloned().collect();
+        entries.sort();
+        entries
+    }
+
+    /// Looks up an entry by the given name.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&String> {
         self.data.get(name)
@@ -101,6 +109,17 @@ mod tests {
         tmp.vault.set("mypass", "test");
 
         assert_eq!(tmp.vault.data.get("mypass").unwrap(), "test");
+    }
+
+    #[test]
+    fn entries_returns_the_names_of_the_vault_entries_in_alphabetical_order() {
+        let mut tmp = TempVault::new();
+        tmp.vault.set("pass1", "test");
+        tmp.vault.set("pass2", "test");
+
+        let want: Vec<String> = vec!["pass1".into(), "pass2".into()];
+        let got = tmp.vault.entries();
+        assert_eq!(want, got);
     }
 
     #[test]
