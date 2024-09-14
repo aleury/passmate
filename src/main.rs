@@ -10,7 +10,6 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Commands {
-    Init,
     Get { name: String },
     Set { name: String, value: String },
     Remove { name: String },
@@ -22,10 +21,6 @@ fn main() -> anyhow::Result<()> {
     let path = dirs.place_config_file("default.vault")?;
     let mut vault = Vault::open(&path)?;
     match args.command {
-        Commands::Init => {
-            vault.save()?;
-            println!("Initialized vault at {}", path.display());
-        }
         Commands::Get { name } => {
             let Some(value) = vault.get(&name) else {
                 eprintln!("{name} not found");

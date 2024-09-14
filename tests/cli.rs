@@ -36,36 +36,9 @@ fn binary_with_help_flag_prints_usage() {
 }
 
 #[test]
-fn binary_with_init_command_creates_a_config_directory_for_the_applicaton() {
-    let temp_config =
-        TempDir::with_prefix("config-").expect("failed to create temporary config directory");
-
-    let vault_path = temp_config.path().join("passmate/default.vault");
-
-    Command::cargo_bin("passmate")
-        .unwrap()
-        .env(CONFIG_HOME, temp_config.path())
-        .arg("init")
-        .assert()
-        .success()
-        .stdout(predicates::str::contains(format!(
-            "Initialized vault at {}",
-            vault_path.display(),
-        )));
-
-    assert!(vault_path.exists(), "expected vault to exist");
-}
-
-#[test]
 fn binary_with_set_command_adds_a_password_to_the_vault() {
     let temp_config =
         TempDir::with_prefix("config-").expect("failed to create temporary config directory");
-    Command::cargo_bin("passmate")
-        .unwrap()
-        .env(CONFIG_HOME, temp_config.path())
-        .arg("init")
-        .assert()
-        .success();
 
     Command::cargo_bin("passmate")
         .unwrap()
@@ -86,12 +59,6 @@ fn binary_with_get_command_retrieves_password_from_the_vault() {
     Command::cargo_bin("passmate")
         .unwrap()
         .env(CONFIG_HOME, temp_config.path())
-        .arg("init")
-        .assert()
-        .success();
-    Command::cargo_bin("passmate")
-        .unwrap()
-        .env(CONFIG_HOME, temp_config.path())
         .args(["set", "mypass", "testpass"])
         .assert()
         .success();
@@ -109,12 +76,6 @@ fn binary_with_get_command_retrieves_password_from_the_vault() {
 fn binary_with_get_command_prints_not_found_if_a_password_with_given_name_does_not_exist() {
     let temp_config =
         TempDir::with_prefix("config-").expect("failed to create temporary config directory");
-    Command::cargo_bin("passmate")
-        .unwrap()
-        .env(CONFIG_HOME, temp_config.path())
-        .arg("init")
-        .assert()
-        .success();
 
     Command::cargo_bin("passmate")
         .unwrap()
@@ -129,12 +90,6 @@ fn binary_with_get_command_prints_not_found_if_a_password_with_given_name_does_n
 fn binary_with_remove_command_deletes_a_password_from_the_vault() {
     let temp_config =
         TempDir::with_prefix("config-").expect("failed to create temporary config directory");
-    Command::cargo_bin("passmate")
-        .unwrap()
-        .env(CONFIG_HOME, temp_config.path())
-        .arg("init")
-        .assert()
-        .success();
     Command::cargo_bin("passmate")
         .unwrap()
         .env(CONFIG_HOME, temp_config.path())
