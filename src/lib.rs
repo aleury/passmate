@@ -8,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// A container for passwords or other secrets.
 pub struct Vault {
     path: PathBuf,
     data: HashMap<String, String>,
@@ -18,8 +19,7 @@ impl Vault {
     /// a empty vault if it doesn't already exist.
     ///
     /// # Errors
-    /// May return an I/O error if there a failure to open
-    /// the vault at provided path.
+    /// May return an error if opening the vault file fails.
     pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
         match File::open(&path) {
             Ok(file) => {
