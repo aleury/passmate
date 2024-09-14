@@ -1,6 +1,5 @@
 //! # passmate
 //! Manage passwords with ease.
-#![allow(unused)]
 
 use std::{
     collections::HashMap,
@@ -9,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// A container for passwords or other secrets.
 pub struct Vault {
     path: PathBuf,
     data: HashMap<String, String>,
@@ -19,8 +19,7 @@ impl Vault {
     /// a empty vault if it doesn't already exist.
     ///
     /// # Errors
-    /// May return an I/O error if there a failure to open
-    /// the vault at provided path.
+    /// May return an error if opening the vault file fails.
     pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
         match File::open(&path) {
             Ok(file) => {
@@ -39,15 +38,13 @@ impl Vault {
         }
     }
 
-    fn size(&self) -> usize {
-        self.data.len()
-    }
-
+    /// Retrieves an entry with the given name.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&String> {
         self.data.get(name)
     }
 
+    /// Adds or updates an entry with the given name.
     pub fn set<S>(&mut self, name: S, value: S)
     where
         S: Into<String>,
@@ -55,6 +52,7 @@ impl Vault {
         self.data.insert(name.into(), value.into());
     }
 
+    /// Removes the entry with the given name.
     pub fn remove(&mut self, name: &str) {
         self.data.remove(name);
     }
@@ -94,22 +92,6 @@ mod tests {
 
         let vault = Vault::open(tmp.vault.path).unwrap();
         assert_eq!(vault.data, tmp.vault.data);
-    }
-
-    #[test]
-    fn size_returns_zero_for_an_empty_vault() {
-        let tmp = TempVault::new();
-        assert_eq!(tmp.vault.size(), 0);
-    }
-
-    #[test]
-    fn size_returns_the_count_of_the_items_in_a_nonempty_vault() {
-        let mut tmp = TempVault::new();
-        tmp.vault.data.extend([
-            ("mypass".into(), "test".into()),
-            ("mypass2".into(), "test".into()),
-        ]);
-        assert_eq!(tmp.vault.size(), 2);
     }
 
     #[test]
