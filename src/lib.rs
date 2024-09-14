@@ -55,7 +55,7 @@ impl Vault {
         self.data.insert(name.into(), value.into());
     }
 
-    fn remove(&mut self, name: &str) {
+    pub fn remove(&mut self, name: &str) {
         self.data.remove(name);
     }
 
