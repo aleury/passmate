@@ -10,8 +10,17 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Commands {
+    #[command(visible_alias = "ls")]
+    #[command(about = "List the entries stored in the vault")]
+    List,
+
+    #[command(about = "Get the value of an entry by name")]
     Get { name: String },
+
+    #[command(about = "Add or update an entry")]
     Set { name: String, value: String },
+
+    #[command(about = "Remove an entry")]
     Remove { name: String },
 }
 
@@ -21,6 +30,11 @@ fn main() -> anyhow::Result<()> {
     let path = dirs.place_config_file("default.vault")?;
     let mut vault = Vault::open(&path)?;
     match args.command {
+        Commands::List => {
+            for entry in vault.entries() {
+                println!("{entry}");
+            }
+        }
         Commands::Get { name } => {
             let Some(value) = vault.get(&name) else {
                 eprintln!("{name} not found");
