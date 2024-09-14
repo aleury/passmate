@@ -9,9 +9,9 @@ readme = "README.md"
 [dependencies]
 anyhow = "1"
 clap = { version = "4.5.17", features = ["derive"] }
-directories = "5"
 serde = "1"
 serde_json = "1"
+xdg = "2.5.2"
 
 [dev-dependencies]
 assert_cmd = "2"
