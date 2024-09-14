@@ -18,11 +18,10 @@ fn main() -> anyhow::Result<()> {
     let project_dirs = xdg::BaseDirectories::with_prefix("passmate")?;
     match args.command {
         Commands::Init => {
-            let config_dir = project_dirs.create_config_directory("")?;
-            let vault_dir = config_dir.join("default.vault");
-            let vault = Vault::open(&vault_dir)?;
+            let path = project_dirs.place_config_file("default.vault")?;
+            let vault = Vault::open(&path)?;
             vault.save()?;
-            println!("Initialized vault at {}", vault_dir.display());
+            println!("Initialized vault at {}", path.display());
         }
     }
 
