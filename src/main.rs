@@ -18,17 +18,15 @@ enum Commands {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let project_dirs = xdg::BaseDirectories::with_prefix("passmate")?;
+    let dirs = xdg::BaseDirectories::with_prefix("passmate")?;
+    let path = dirs.place_config_file("default.vault")?;
+    let mut vault = Vault::open(&path)?;
     match args.command {
         Commands::Init => {
-            let path = project_dirs.place_config_file("default.vault")?;
-            let vault = Vault::open(&path)?;
             vault.save()?;
             println!("Initialized vault at {}", path.display());
         }
         Commands::Get { name } => {
-            let path = project_dirs.place_config_file("default.vault")?;
-            let vault = Vault::open(&path)?;
             let Some(value) = vault.get(&name) else {
                 eprintln!("{name} not found");
                 std::process::exit(1);
@@ -36,14 +34,10 @@ fn main() -> anyhow::Result<()> {
             println!("{value}");
         }
         Commands::Set { name, value } => {
-            let path = project_dirs.place_config_file("default.vault")?;
-            let mut vault = Vault::open(&path)?;
             vault.set(name, value);
             vault.save()?;
         }
         Commands::Remove { name } => {
-            let path = project_dirs.place_config_file("default.vault")?;
-            let mut vault = Vault::open(&path)?;
             vault.remove(&name);
             vault.save()?;
         }
