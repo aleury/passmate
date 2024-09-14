@@ -47,7 +47,10 @@ impl Vault {
         self.data.get(name)
     }
 
-    fn set(&mut self, name: &str, value: &str) {
+    pub fn set<S>(&mut self, name: S, value: S)
+    where
+        S: Into<String>,
+    {
         self.data.insert(name.into(), value.into());
     }
 

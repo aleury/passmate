@@ -11,6 +11,7 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     Init,
+    Set { name: String, value: String },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -22,6 +23,12 @@ fn main() -> anyhow::Result<()> {
             let vault = Vault::open(&path)?;
             vault.save()?;
             println!("Initialized vault at {}", path.display());
+        }
+        Commands::Set { name, value } => {
+            let path = project_dirs.place_config_file("default.vault")?;
+            let mut vault = Vault::open(&path)?;
+            vault.set(name, value);
+            vault.save()?;
         }
     }
 
