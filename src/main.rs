@@ -11,6 +11,7 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     Init,
+    Get { name: String },
     Set { name: String, value: String },
 }
 
@@ -24,6 +25,15 @@ fn main() -> anyhow::Result<()> {
             vault.save()?;
             println!("Initialized vault at {}", path.display());
         }
+        Commands::Get { name } => {
+            let path = project_dirs.place_config_file("default.vault")?;
+            let vault = Vault::open(&path)?;
+            let Some(value) = vault.get(&name) else {
+                eprintln!("{name} not found");
+                std::process::exit(1);
+            };
+            println!("{value}");
+        }
         Commands::Set { name, value } => {
             let path = project_dirs.place_config_file("default.vault")?;
             let mut vault = Vault::open(&path)?;
@@ -31,6 +41,5 @@ fn main() -> anyhow::Result<()> {
             vault.save()?;
         }
     }
-
     Ok(())
 }
