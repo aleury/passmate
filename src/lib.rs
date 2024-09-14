@@ -43,7 +43,8 @@ impl Vault {
         self.data.len()
     }
 
-    fn get(&self, name: &str) -> Option<&String> {
+    #[must_use]
+    pub fn get(&self, name: &str) -> Option<&String> {
         self.data.get(name)
     }
 

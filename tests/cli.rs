@@ -79,6 +79,52 @@ fn binary_with_set_command_adds_a_password_to_the_vault() {
     assert_eq!(want, got);
 }
 
+#[test]
+fn binary_with_get_command_retrieves_password_from_the_vault() {
+    let temp_config =
+        TempDir::with_prefix("config-").expect("failed to create temporary config directory");
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .arg("init")
+        .assert()
+        .success();
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .args(["set", "mypass", "testpass"])
+        .assert()
+        .success();
+
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .args(["get", "mypass"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("testpass"));
+}
+
+#[test]
+fn binary_with_get_command_prints_not_found_if_a_password_with_given_name_does_not_exist() {
+    let temp_config =
+        TempDir::with_prefix("config-").expect("failed to create temporary config directory");
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .args(["get", "mypass"])
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains("mypass not found"));
+}
+
 fn read_vault_data_from_file(path: &PathBuf) -> HashMap<String, String> {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
