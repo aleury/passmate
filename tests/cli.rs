@@ -125,6 +125,35 @@ fn binary_with_get_command_prints_not_found_if_a_password_with_given_name_does_n
         .stderr(predicates::str::contains("mypass not found"));
 }
 
+#[test]
+fn binary_with_remove_command_deletes_a_password_from_the_vault() {
+    let temp_config =
+        TempDir::with_prefix("config-").expect("failed to create temporary config directory");
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .arg("init")
+        .assert()
+        .success();
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .args(["set", "mypass", "testpass"])
+        .assert()
+        .success();
+
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .args(["remove", "mypass"])
+        .assert()
+        .success();
+
+    let want = HashMap::new();
+    let got = read_vault_data_from_file(&temp_config.path().join("passmate/default.vault"));
+    assert_eq!(want, got);
+}
+
 fn read_vault_data_from_file(path: &PathBuf) -> HashMap<String, String> {
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
