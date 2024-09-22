@@ -24,7 +24,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-llvm-cov cargo-mutants
       - run: cargo llvm-cov --all-features
-      - run: cargo mutants --check
+      - run: cargo mutants --check --all-features
 
   lint:
     runs-on: ubuntu-latest

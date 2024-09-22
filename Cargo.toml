@@ -7,10 +7,16 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 
 [dependencies]
+aes-gcm = "0.10.3"
 anyhow = "1"
+argon2 = "0.5.3"
 clap = { version = "4.5.17", features = ["derive"] }
+mutants = "0.0.3"
+rand = "0.8.5"
+rpassword = "7.3.1"
 serde = "1"
 serde_json = "1"
+thiserror = "1.0.63"
 xdg = "2.5.2"
 
 [dev-dependencies]
@@ -18,3 +24,6 @@ assert_cmd = "2"
 claims = "0.7"
 predicates = "3"
 tempfile = "3.12"
+
+[features]
+integration-tests = []

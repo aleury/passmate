@@ -1,5 +1,3 @@
-use std::{collections::HashMap, fs::File, io::BufReader, path::PathBuf};
-
 use assert_cmd::Command;
 use tempfile::TempDir;
 
@@ -46,10 +44,6 @@ fn binary_with_set_command_adds_a_password_to_the_vault() {
         .args(["set", "mypass", "test"])
         .assert()
         .success();
-
-    let want = HashMap::from([("mypass".into(), "test".into())]);
-    let got = read_vault_data_from_file(&temp_config.path().join("passmate/default.vault"));
-    assert_eq!(want, got);
 }
 
 #[test]
@@ -104,9 +98,13 @@ fn binary_with_remove_command_deletes_a_password_from_the_vault() {
         .assert()
         .success();
 
-    let want = HashMap::new();
-    let got = read_vault_data_from_file(&temp_config.path().join("passmate/default.vault"));
-    assert_eq!(want, got);
+    Command::cargo_bin("passmate")
+        .unwrap()
+        .env(CONFIG_HOME, temp_config.path())
+        .args(["get", "mypass"])
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains("mypass not found"));
 }
 
 #[test]
@@ -133,10 +131,4 @@ fn binary_with_ls_command_lists_the_entry_names_in_a_vault() {
         .assert()
         .success()
         .stdout(predicates::str::contains("pass1\npass2\n"));
-}
-
-fn read_vault_data_from_file(path: &PathBuf) -> HashMap<String, String> {
-    let file = File::open(path).unwrap();
-    let reader = BufReader::new(file);
-    serde_json::from_reader(reader).unwrap()
 }
