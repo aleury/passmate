@@ -254,7 +254,7 @@ mod tests {
     }
 
     #[test]
-    fn encrypted_a_value_should_produce_different_results_each_time() {
+    fn encrypting_a_value_should_produce_different_results_each_time() {
         let salt = generate_salt();
         let key = make_key("testpass", &salt).expect("failed to make key");
         let plaintext = "this is a test";
