@@ -1,16 +1,37 @@
 //! # passmate
 //! Manage passwords with ease.
-
+use aes_gcm::{
+    aead::{self, Aead},
+    AeadCore, Aes256Gcm, Key, KeyInit, Nonce,
+};
+use argon2::Argon2;
+use rand::{rngs::OsRng, Rng};
 use std::{
     collections::HashMap,
     fs::File,
-    io::{self, BufReader, BufWriter, ErrorKind},
+    io::{ErrorKind, Read},
     path::{Path, PathBuf},
 };
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum PassmateError {
+    #[error("An encryption error occurred: {0}")]
+    Encrypt(aead::Error),
+    #[error("A decryption error occurred: {0}")]
+    Decrypt(aead::Error),
+    #[error("Failed to make key: {0}")]
+    EncryptionKey(argon2::Error),
+    #[error("Failed to serialize vault: {0}")]
+    Json(serde_json::Error),
+    #[error("Error writing or reading vault: {0}")]
+    IO(std::io::Error),
+}
 
 /// A container for passwords or other secrets.
 pub struct Vault {
     path: PathBuf,
+    passphrase: String,
     data: HashMap<String, String>,
 }
 
@@ -19,22 +40,29 @@ impl Vault {
     /// a empty vault if it doesn't already exist.
     ///
     /// # Errors
-    /// May return an error if opening the vault file fails.
-    pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
+    /// May return an error if opening, decrypting, or deserializing the vault data fails.
+    pub fn open(path: impl AsRef<Path>, passphrase: &str) -> Result<Self, PassmateError> {
         match File::open(&path) {
-            Ok(file) => {
-                let reader = BufReader::new(file);
-                let data = serde_json::from_reader(reader)?;
+            Ok(mut file) => {
+                let mut encrypted_data = Vec::new();
+                file.read_to_end(&mut encrypted_data)
+                    .map_err(PassmateError::IO)?;
+                let (salt, encrypted_data) = encrypted_data.split_at(16);
+                let key = make_key(passphrase, salt)?;
+                let data = decrypt(key, encrypted_data)?;
+                let data = serde_json::from_slice(&data).map_err(PassmateError::Json)?;
                 Ok(Self {
                     path: PathBuf::from(path.as_ref()),
+                    passphrase: passphrase.into(),
                     data,
                 })
             }
             Err(e) if e.kind() == ErrorKind::NotFound => Ok(Self {
                 path: PathBuf::from(path.as_ref()),
+                passphrase: passphrase.into(),
                 data: HashMap::new(),
             }),
-            Err(e) => Err(e),
+            Err(e) => Err(PassmateError::IO(e)),
         }
     }
 
@@ -71,24 +99,69 @@ impl Vault {
     ///
     /// Returns an error if it fails to create and write
     /// to a file at the given path.
-    pub fn save(&self) -> io::Result<()> {
-        let file = File::create(&self.path)?;
-        let writer = BufWriter::new(file);
-        serde_json::to_writer(writer, &self.data)?;
-        Ok(())
+    pub fn save(&self) -> Result<(), PassmateError> {
+        let salt = generate_salt();
+        let key = make_key(&self.passphrase, &salt)?;
+
+        let data = serde_json::to_vec(&self.data).map_err(PassmateError::Json)?;
+        let encrypted_data = encrypt(key, &data)?;
+
+        let mut contents = salt.to_vec();
+        contents.extend_from_slice(&encrypted_data);
+
+        std::fs::write(&self.path, &contents).map_err(PassmateError::IO)
     }
+}
+
+#[mutants::skip]
+fn make_key(pwd: &str, salt: &[u8]) -> Result<[u8; 32], PassmateError> {
+    let mut key = [0u8; 32];
+    Argon2::default()
+        .hash_password_into(pwd.as_bytes(), salt, &mut key)
+        .map_err(PassmateError::EncryptionKey)?;
+    Ok(key)
+}
+
+#[mutants::skip]
+fn generate_salt() -> [u8; 16] {
+    let mut salt = [0u8; 16];
+    rand::thread_rng().fill(&mut salt);
+    salt
+}
+
+fn encrypt(key: [u8; 32], data: &[u8]) -> Result<Vec<u8>, PassmateError> {
+    let key = Key::<Aes256Gcm>::from_slice(&key);
+    let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 96-bits; unique per message
+
+    let cipher = Aes256Gcm::new(key);
+    let ciphertext = cipher
+        .encrypt(&nonce, data)
+        .map_err(PassmateError::Encrypt)?;
+
+    let mut encrypted_data = nonce.to_vec();
+    encrypted_data.extend_from_slice(&ciphertext);
+
+    Ok(encrypted_data)
+}
+
+fn decrypt(key: [u8; 32], encrypted_data: &[u8]) -> Result<Vec<u8>, PassmateError> {
+    let key = Key::<Aes256Gcm>::from_slice(&key);
+    let (nonce, ciphertext) = encrypted_data.split_at(12);
+    Aes256Gcm::new(key)
+        .decrypt(Nonce::from_slice(nonce), ciphertext)
+        .map_err(PassmateError::Decrypt)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Vault;
-    use claims::{assert_none, assert_ok};
-    use std::{collections::HashMap, fs::File, io::BufReader, path::PathBuf};
+    use super::*;
+    use claims::{assert_err, assert_none, assert_ok};
+    use std::{collections::HashMap, path::PathBuf};
     use tempfile::TempDir;
 
     #[test]
     fn open_returns_an_empty_vault_for_file_that_doesnt_exist() {
-        let vault = Vault::open(PathBuf::from("doesnotexist")).unwrap();
+        let vault = Vault::open(PathBuf::from("doesnotexist"), "testpwd").unwrap();
         assert!(vault.data.is_empty());
     }
 
@@ -98,7 +171,7 @@ mod tests {
         tmp.vault.set("mypass", "test");
         assert_ok!(tmp.vault.save());
 
-        let vault = Vault::open(tmp.vault.path).unwrap();
+        let vault = Vault::open(tmp.vault.path, "testpwd").unwrap();
         assert_eq!(vault.data, tmp.vault.data);
     }
 
@@ -161,15 +234,43 @@ mod tests {
         temp_vault.vault.set("mypass", "test");
         assert_ok!(temp_vault.vault.save());
 
-        let got = read_vault_data_from_file(&temp_vault.vault.path);
+        let got = Vault::open(&temp_vault.vault.path, &temp_vault.vault.passphrase).unwrap();
         let want = HashMap::from([("mypass".into(), "test".into())]);
-        assert_eq!(got, want);
+        assert_eq!(got.data, want);
     }
 
-    fn read_vault_data_from_file(path: &PathBuf) -> HashMap<String, String> {
-        let file = File::open(path).unwrap();
-        let reader = BufReader::new(file);
-        serde_json::from_reader(reader).unwrap()
+    #[test]
+    fn data_can_be_encrypted_and_decrypted() {
+        let salt = generate_salt();
+        let key = make_key("testpass", &salt).expect("failed to make key");
+        let original_plaintext = "this is a test";
+        let ciphertext =
+            encrypt(key, original_plaintext.as_bytes()).expect("failed to encrypt data");
+        let decrypted_plaintext = decrypt(key, &ciphertext).expect("failed to decrypted data");
+        assert_eq!(
+            original_plaintext,
+            String::from_utf8_lossy(&decrypted_plaintext)
+        );
+    }
+
+    #[test]
+    fn encrypted_a_value_should_produce_different_results_each_time() {
+        let salt = generate_salt();
+        let key = make_key("testpass", &salt).expect("failed to make key");
+        let plaintext = "this is a test";
+        let ciphertext1 = encrypt(key, plaintext.as_bytes()).expect("failed to encrypt data");
+        let ciphertext2 = encrypt(key, plaintext.as_bytes()).expect("failed to encrypt data");
+        assert_ne!(ciphertext1, ciphertext2);
+    }
+
+    #[test]
+    fn decrypting_a_tampered_with_ciphertext_should_return_an_error() {
+        let salt = generate_salt();
+        let key = make_key("testpass", &salt).expect("failed to make key");
+        let plaintext = "this is a test";
+        let mut ciphertext = encrypt(key, plaintext.as_bytes()).expect("failed to encrypt data");
+        ciphertext[0] = 0;
+        assert_err!(decrypt(key, &ciphertext));
     }
 
     struct TempVault {
@@ -183,7 +284,7 @@ mod tests {
             let path = temp_dir.path().join("test.vault");
             Self {
                 _temp_dir: temp_dir,
-                vault: Vault::open(path).unwrap(),
+                vault: Vault::open(path, "testpwd").unwrap(),
             }
         }
     }
