@@ -25,13 +25,13 @@ enum Commands {
     Remove { name: String },
 }
 
-#[cfg(feature = "integration-test-mode")]
+#[cfg(feature = "integration-tests")]
 fn open_vault(path: PathBuf) -> Result<Vault, PassmateError> {
     Vault::open(path, "testpwd")
 }
 
 #[mutants::skip]
-#[cfg(not(feature = "integration-test-mode"))]
+#[cfg(not(feature = "integration-tests"))]
 fn open_vault(path: PathBuf) -> Result<Vault, PassmateError> {
     let passphrase = rpassword::prompt_password("Enter password: ").map_err(PassmateError::IO)?;
 

@@ -26,4 +26,4 @@ predicates = "3"
 tempfile = "3.12"
 
 [features]
-integration-test-mode = []
+integration-tests = []
