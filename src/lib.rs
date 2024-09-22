@@ -133,8 +133,7 @@ fn encrypt(key: [u8; 32], data: &[u8]) -> Result<Vec<u8>, PassmateError> {
     let key = Key::<Aes256Gcm>::from_slice(&key);
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 96-bits; unique per message
 
-    let cipher = Aes256Gcm::new(key);
-    let ciphertext = cipher
+    let ciphertext = Aes256Gcm::new(key)
         .encrypt(&nonce, data)
         .map_err(PassmateError::Encrypt)?;
 
